@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-2019  # 明确使用 x64 版本
+    runs-on: windows-2022  # 明确使用 x64 版本
 
     steps:
       - name: Checkout code
@@ -21,8 +21,10 @@ jobs:
         run: |
           echo "OS: $env:OS"
           echo "PROCESSOR_ARCHITECTURE: $env:PROCESSOR_ARCHITECTURE"
+          echo "ProgramFiles: $env:ProgramFiles"
           python --version
-          python -c "import struct; print(f'Python arch: {struct.calcsize(\"P\") * 8}-bit')"
+          python -c "import struct; print('Python arch: ' + str(struct.calcsize('P') * 8) + '-bit')"
+          where python
 
       - name: Read version
         id: version
