@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019  # 明确使用 x64 版本
 
     steps:
       - name: Checkout code
