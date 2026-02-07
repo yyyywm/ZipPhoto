@@ -3,124 +3,23 @@ name: Build and Release
 on:
   push:
     branches: [master]
-    
-  workflow_dispatch:  # 允许手动触发该 workflow
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   build:
-    runs-on: windows-latest # 明确使用 x64 版本
+    runs-on: windows-2019  # 明确使用 x64 版本
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Show system info
-        run: |
-          echo "OS: $env:OS"
-          echo "PROCESSOR_ARCHITECTURE: $env:PROCESSOR_ARCHITECTURE"
-          echo "ProgramFiles: $env:ProgramFiles"
-          python --version
-          python -c "import struct; print('Python arch: ' + str(struct.calcsize('P') * 8) + '-bit')"
-          where python
-
-      - name: Read version
-        id: version
-        run: |
-          $version = Get-Content version.txt -Raw
-          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -NoNewline
-
-      - name: Create Tag & Release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = '${{ steps.version.outputs.VERSION }}';
-            const sha = '${{ github.sha }}';
-
-            // Delete existing tag if exists
-            try {
-              await github.rest.git.deleteRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `tags/${version}`
-              });
-              console.log(`Deleted existing tag: ${version}`);
-            } catch (e) {
-              console.log(`Tag ${version} does not exist`);
-            }
-
-            // Create tag object
-            await github.rest.git.createTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: version,
-              message: `Release ${version}`,
-              object: sha,
-              type: 'commit',
-              tagger: {
-                name: 'github-actions[bot]',
-                email: 'github-actions[bot]@users.noreply.github.com'
-              }
-            });
-
-            // Create tag reference
-            await github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `refs/tags/${version}`,
-              sha: sha
-            });
-
-            console.log(`Created tag: ${version}`);
-
-            // Create release (ignore if already exists, use overwrite)
-            try {
-              const { data: existingRelease } = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: version
-              });
-              // Delete existing release
-              await github.rest.repos.deleteRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: existingRelease.id
-              });
-              console.log(`Deleted existing release: ${version}`);
-            } catch (e) {
-              console.log(`Release ${version} does not exist, will create new`);
-            }
-
-            // Create new release
-            await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: version,
-              name: `ZipPhoto ${version}`,
-              body: `## Download\nDownload ZipPhoto_${version}.exe and run locally.`,
-              draft: false,
-              prerelease: false
-            });
-
-            console.log(`Created release: ${version}`);
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~\AppData\Local\Programs\Python\Python311\Lib\site-packages
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
@@ -129,36 +28,51 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --noconfirm --onefile --windowed --noconsole --collect-all PIL --collect-all Pillow --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
+          pyinstaller --noconfirm --onefile --console --name ZipPhoto main.py
           dir dist
 
-      - name: Upload Release Asset
-        uses: actions/github-script@v7
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            const version = '${{ steps.version.outputs.VERSION }}';
-            const fs = require('fs');
-            const path = require('path');
+          name: ZipPhoto-exe
+          path: dist/ZipPhoto.exe
 
-            // Find the exe file
-            const exePath = path.join(process.cwd(), 'dist', `ZipPhoto_${version}.exe`);
-            console.log(`Uploading: ${exePath}`);
+  test:
+    runs-on: windows-2019
+    needs: build
 
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: version
-            });
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ZipPhoto-exe
 
-            await github.rest.repos.uploadReleaseAsset({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.id,
-              name: `ZipPhoto_${version}.exe`,
-              asset: fs.createReadStream(exePath),
-              headers: {
-                'Content-Type': 'application/octet-stream'
-              }
-            });
+      - name: Run test
+        run: |
+          .\ZipPhoto.exe --version
 
-            console.log(`Uploaded ZipPhoto_${version}.exe`);
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ZipPhoto-exe
+
+      - name: Read version
+        id: version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ZipPhoto.exe
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: ZipPhoto ${{ steps.version.outputs.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
