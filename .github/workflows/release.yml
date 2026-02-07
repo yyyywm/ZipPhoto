@@ -127,7 +127,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build executable
-        run: pyinstaller --onefile --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
+        run: pyinstaller --noconfirm --onefile --windowed --noconsole --collect-all PIL --collect-all Pillow --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
 
       - name: Upload Release Asset
         uses: actions/github-script@v7
