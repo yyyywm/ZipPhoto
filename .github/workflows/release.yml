@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-2022  # 明确使用 x64 版本
+    runs-on: windows-latest # 明确使用 x64 版本
 
     steps:
       - name: Checkout code
