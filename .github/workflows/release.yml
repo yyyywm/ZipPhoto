@@ -17,6 +17,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Show system info
+        run: |
+          echo "OS: $env:OS"
+          echo "PROCESSOR_ARCHITECTURE: $env:PROCESSOR_ARCHITECTURE"
+          python --version
+          python -c "import struct; print(f'Python arch: {struct.calcsize(\"P\") * 8}-bit')"
+
       - name: Read version
         id: version
         run: |
