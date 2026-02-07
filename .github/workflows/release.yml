@@ -36,41 +36,43 @@ jobs:
 
       - name: Read version
         id: version
-        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+        run: |
+          $version = Get-Content version.txt -Raw
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -NoNewline
 
       - name: Build executable
         run: pyinstaller --onefile --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
 
       - name: Create Git Tag via API
-        run: |
-          TAG_NAME="${{ steps.version.outputs.VERSION }}"
-          SHA=$(git rev-parse HEAD)
-          echo "Creating tag $TAG_NAME for commit $SHA"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.VERSION }}';
+            const sha = '${{ github.sha }}';
 
-          # Create tag object
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            https://api.github.com/repos/${{ github.repository }}/git/tags \
-            -d "{
-              \"tag\": \"$TAG_NAME\",
-              \"message\": \"Release $TAG_NAME\",
-              \"object\": \"$SHA\",
-              \"type\": \"commit\",
-              \"tagger\": {
-                \"name\": \"github-actions[bot]\",
-                \"email\": \"github-actions[bot]@users.noreply.github.com\"
+            // Create tag
+            await github.rest.git.createTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: version,
+              message: `Release ${version}`,
+              object: sha,
+              type: 'commit',
+              tagger: {
+                name: 'github-actions[bot]',
+                email: 'github-actions[bot]@users.noreply.github.com'
               }
-            }"
+            });
 
-          # Create tag reference
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/${{ github.repository }}/git/refs \
-            -d "{
-              \"ref\": \"refs/tags/$TAG_NAME\",
-              \"sha\": \"$SHA\"
-            }"
+            // Create tag reference
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${version}`,
+              sha: sha
+            });
+
+            console.log(`Created tag ${version}`);
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
