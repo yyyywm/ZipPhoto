@@ -139,7 +139,6 @@ jobs:
             const version = '${{ steps.version.outputs.VERSION }}';
             const fs = require('fs');
             const path = require('path');
-            const exec = require('child_process').execSync;
 
             // Find the exe file
             const exePath = path.join(process.cwd(), 'dist', `ZipPhoto_${version}.exe`);
