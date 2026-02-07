@@ -128,7 +128,9 @@ jobs:
           pip install pyinstaller
 
       - name: Build executable
-        run: pyinstaller --noconfirm --onefile --windowed --noconsole --collect-all PIL --collect-all Pillow --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --noconsole --collect-all PIL --collect-all Pillow --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
+          dir dist
 
       - name: Upload Release Asset
         uses: actions/github-script@v7
@@ -137,6 +139,11 @@ jobs:
             const version = '${{ steps.version.outputs.VERSION }}';
             const fs = require('fs');
             const path = require('path');
+            const exec = require('child_process').execSync;
+
+            // Find the exe file
+            const exePath = path.join(process.cwd(), 'dist', `ZipPhoto_${version}.exe`);
+            console.log(`Uploading: ${exePath}`);
 
             const { data: release } = await github.rest.repos.getReleaseByTag({
               owner: context.repo.owner,
@@ -149,7 +156,7 @@ jobs:
               repo: context.repo.repo,
               release_id: release.id,
               name: `ZipPhoto_${version}.exe`,
-              asset: fs.createReadStream(path.join('dist', `ZipPhoto_${version}.exe`)),
+              asset: fs.createReadStream(exePath),
               headers: {
                 'Content-Type': 'application/octet-stream'
               }
