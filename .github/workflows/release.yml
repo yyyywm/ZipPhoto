@@ -46,7 +46,7 @@ jobs:
       - name: Build executable
         run: pyinstaller --onefile --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
 
-      - name: Create Git Tag via API
+      - name: Create Release
         uses: actions/github-script@v7
         with:
           script: |
@@ -75,14 +75,15 @@ jobs:
               sha: sha
             });
 
-            console.log(`Created tag ${version}`);
+            // Create release using API
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: version,
+              name: `ZipPhoto ${version}`,
+              body: `## Download\nDownload ZipPhoto_${version}.exe and run locally.`,
+              draft: false,
+              prerelease: false
+            });
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.exe
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            console.log(`Created release ${version}`);
