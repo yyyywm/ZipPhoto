@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\pip\Cache
+            ~\AppData\Local\Programs\Python\Python311\Lib\site-packages
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Read version
+        id: version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+      - name: Build executable
+        run: pyinstaller --onefile --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          name: ZipPhoto ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## 下载说明
+            下载 `ZipPhoto_vX.X.X.exe` 文件到本地运行。
+
+            ## 更新内容
+            请查看 commit 历史了解具体更新。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
