@@ -1,6 +1,6 @@
 # ZipPhoto - Image Batch Compression Tool
 
-> **中文版**: [README.zh-CN.md](README.zh-CN.md)
+> **中文版**: [README.zh-CN.md](README.md)
 
 A simple and easy-to-use image batch compression tool that reduces images to a specified size.
 
