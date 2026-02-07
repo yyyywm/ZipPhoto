@@ -39,18 +39,13 @@ jobs:
       - name: Build executable
         run: pyinstaller --onefile --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
 
-      - name: Create Git Tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a ${{ steps.version.outputs.VERSION }} -m "Release ${{ steps.version.outputs.VERSION }}"
-          git push origin ${{ steps.version.outputs.VERSION }}
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.exe
           tag_name: ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
           generate_release_notes: true
           name: ZipPhoto ${{ steps.version.outputs.VERSION }}
           body: |
