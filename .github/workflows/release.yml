@@ -41,11 +41,36 @@ jobs:
       - name: Build executable
         run: pyinstaller --onefile --name ZipPhoto_${{ steps.version.outputs.VERSION }} main.py
 
-      - name: Create Git Tag
-        uses: pfefferle/actions-create-tag@v1
-        with:
-          tag: ${{ steps.version.outputs.VERSION }}
-          message: 'Release ${{ steps.version.outputs.VERSION }}'
+      - name: Create Git Tag via API
+        run: |
+          TAG_NAME="${{ steps.version.outputs.VERSION }}"
+          SHA=$(git rev-parse HEAD)
+          echo "Creating tag $TAG_NAME for commit $SHA"
+
+          # Create tag object
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/repos/${{ github.repository }}/git/tags \
+            -d "{
+              \"tag\": \"$TAG_NAME\",
+              \"message\": \"Release $TAG_NAME\",
+              \"object\": \"$SHA\",
+              \"type\": \"commit\",
+              \"tagger\": {
+                \"name\": \"github-actions[bot]\",
+                \"email\": \"github-actions[bot]@users.noreply.github.com\"
+              }
+            }"
+
+          # Create tag reference
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/git/refs \
+            -d "{
+              \"ref\": \"refs/tags/$TAG_NAME\",
+              \"sha\": \"$SHA\"
+            }"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
