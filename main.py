@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+import sys
+import io
+
+# 设置控制台输出编码
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+except AttributeError:
+    # Python 3.6 compatibility
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, errors='replace')
+
 from PIL import Image
 from pathlib import Path
 
